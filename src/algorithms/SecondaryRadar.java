@@ -24,8 +24,8 @@ public class SecondaryRadar extends Brain {
     private static final int TOTURNPOINT = 4;
     private static final int TURNRIGHTTASK = 3;
     private static final int SINK = 0xBADC0DE1;
-    private static final double TARGET_DISTANCE = 500.0;
-    private static final double TARGET_TURN_POINT = 150.0;
+    private static final double TARGET_DISTANCE = 700.0;
+    private static final double TARGET_TURN_POINT = 200.0;
     private static final double HEADINGPRECISION = 0.1;
     private static final double ANGLEPRECISION = 0.001;
     private static final int ROCKY = 0x1EADDA;
