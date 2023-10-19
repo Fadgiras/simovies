@@ -39,9 +39,9 @@ public class SecondaryRadar extends Brain {
         whoAmI = ROCKY;
         for (IRadarResult o: detectRadar()){
             if (o.getObjectType()==IRadarResult.Types.TeamSecondaryBot){
-                System.err.println("Secondary bot detected");
-                System.err.println(isAbove(o.getObjectDirection(),Parameters.NORTH));
-                System.err.println(isSameDirection(o.getObjectDirection(),Parameters.NORTH) && o.getObjectType()==IRadarResult.Types.TeamSecondaryBot);
+                //System.err.println("Secondary bot detected");
+                //System.err.println(isAbove(o.getObjectDirection(),Parameters.NORTH));
+                //System.err.println(isSameDirection(o.getObjectDirection(),Parameters.NORTH) && o.getObjectType()==IRadarResult.Types.TeamSecondaryBot);
 
                 if (isAbove(o.getObjectDirection(),Parameters.NORTH) && o.getObjectType()==IRadarResult.Types.TeamSecondaryBot){
                     whoAmI=MARIO;
@@ -189,10 +189,11 @@ public class SecondaryRadar extends Brain {
             sendLogMessage("In position. Ready to fire! " + (name));
             for (IRadarResult o: detectRadar()){
                 if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
-                    sendLogMessage("Enemy detected. Broadcasting !");
+       
                     double enemyX=myX+o.getObjectDistance()*Math.cos(o.getObjectDirection());
                     double enemyY=myY+o.getObjectDistance()*Math.sin(o.getObjectDirection());
-                    broadcast(whoAmI+":"+TEAM+":"+FIRE+":"+enemyX+":"+enemyY+":"+OVER);
+                    sendLogMessage("Broadcasting : "+ enemyX + " "+ enemyY);
+                    broadcast(enemyX+":"+enemyY);
                 }
             }
         }

@@ -11,13 +11,22 @@ import java.util.ArrayList;
 import robotsimulator.Brain;
 import characteristics.Parameters;
 import characteristics.IFrontSensorResult;
+import characteristics.IRadarResult;
 
 public class Combinaison extends Brain {
   //---PARAMETERS---//
   private static final double HEADINGPRECISION = 0.01;
   private static final double ANGLEPRECISION = 0.001;
+  
+  private static final int WEEB = 0xA1EADDA;
+  private static final int DJIDJI = 0xB5EC0;
+  private static final int BLEP = 0xCBADDADD;
+
+  private static final int DEPLACEMENT = 200;
 
   private Parameters.Direction turnDirectionForAvoiding;
+
+  private int whoAmI;
 
   //---VARIABLES---//
   private boolean turnRightTask,fallBackCoveringFireTask, avoidTeambot, avoidingTeammate,avoidingWreck;
@@ -26,162 +35,96 @@ public class Combinaison extends Brain {
   private static Action[] fallBackCoveringFireScheme = { Action.FIRE, Action.MOVEBACK, Action.FIRELEFT, Action.MOVEBACK, Action.FIRERIGHT, Action.MOVEBACK };
   //private static Action[] fallBackCoveringFireScheme = { Action.FIRE, Action.MOVEBACK};
   private int schemeIndex;
-
+  private double cibleX,cibleY,cibleAngle;
+  private double myX,myY;
+  private ArrayList<String> messages;
+  private ArrayList<IRadarResult> listRadar;
+  private int compteur;
+  private boolean messagerecu;
   //---CONSTRUCTORS---//
   public Combinaison() { super(); }
 
   //---ABSTRACT-METHODS-IMPLEMENTATION---//
   public void activate() {
-    turnRightTask=false;
-    move();
-    sendLogMessage("Moving a head. Waza!");
+	  
+	  //ODOMETRY CODE
+	    
+	    listRadar = detectRadar();
+	    if(isAbove(listRadar.get(0).getObjectDirection(),Parameters.SOUTH) && isAbove(listRadar.get(1).getObjectDirection(),Parameters.EAST)){
+	    	whoAmI = WEEB;
+	    }
+	    if(isAbove(listRadar.get(0).getObjectDirection(),Parameters.NORTH) && isAbove(listRadar.get(1).getObjectDirection(),Parameters.SOUTH)){
+	    	whoAmI = DJIDJI;
+	    }
+	    if(isAbove(listRadar.get(0).getObjectDirection(),Parameters.NORTH) && isAbove(listRadar.get(1).getObjectDirection(),Parameters.EAST)){
+	    	whoAmI = BLEP;
+	    }
+	    if (whoAmI == WEEB){
+	      myX=Parameters.teamAMainBot1InitX;
+	      myY=Parameters.teamAMainBot1InitY;
+	    }
+	    if(whoAmI == DJIDJI) {
+	      myX=Parameters.teamAMainBot2InitX;
+	      myY=Parameters.teamAMainBot2InitY;
+	    }
+	    if(whoAmI == BLEP) {
+	    	myX=Parameters.teamAMainBot3InitX;
+		    myY=Parameters.teamAMainBot3InitY;
+	    }
+	    turnRightTask=false;
+	    move();
+	    
   }
+  
   public void step() {
-    if (fallBackCoveringFireTask) {
-      if (distance>endMoveTask) {
-        fallBackCoveringFireTask=false;
-      } else {
-        switch (fallBackCoveringFireScheme[schemeIndex]){
-          case MOVEBACK:
-            moveBack();
-            distance+=Parameters.teamAMainBotSpeed;
-            break;
-          case FIRE:
-            fire(getHeading());
-            break;
-          case FIRELEFT:
-            fire(getHeading()-0.01*Math.PI);
-            break;
-          case FIRERIGHT:
-            fire(getHeading()+0.01*Math.PI);
-            break;
-        }
-        schemeIndex=(schemeIndex+1)%fallBackCoveringFireScheme.length;
-      }
-      return;
-    }
+	  sendLogMessage("position "+ myX + " "+ myY);
+	  compteur++;
 
-    if (avoidTeambot) {
-      if (distance < endMoveTask) {
-        moveBack();
-        distance += Parameters.teamAMainBotSpeed;
-      } else if (isSameDirection(myGetHeading(), Parameters.NORTH)) {
-        // Decide to turn right or left
-        stepTurn(Parameters.Direction.RIGHT); // or Parameters.Direction.LEFT
-        avoidingTeammate = true;
-        // Reset distance
-        distance = 0;
-      } else if (avoidingTeammate && detectFront().getObjectType() != IFrontSensorResult.Types.TeamSecondaryBot) {
-        stepTurn(Parameters.Direction.LEFT); // or Parameters.Direction.RIGHT depending on the earlier choice
-        // Reset distance
-        distance = 0;
-      } else if (avoidingTeammate && distance < endMoveTask) {
-        move();
-        distance += Parameters.teamAMainBotSpeed;
-      } else {
-        avoidingTeammate = false;
-        avoidTeambot = false;
-      }
-      return;
-    }
+	  //reception de message 
+	  messages= fetchAllMessages();
+	  if(!messages.isEmpty()) {
+			sendLogMessage("Message recu "+ cibleX +" " +cibleY);
+			handleMessages(messages);
+			messages.clear();
+			messagerecu = true;
+	  }
+	  if(messagerecu) {
+		  if(isDistanceInf(myX,myY,cibleX,cibleY)) {
+				cibleAngle=tournerVers(myX,myY,cibleX,cibleY);
+				fire(cibleAngle);
+			}
+	  }
+	  
+	  if(compteur < DEPLACEMENT) {
+		  move();
+		  myX+=Parameters.teamASecondaryBotSpeed*Math.cos(getHeading());
+	      myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
+		  compteur++;
+	  }
 
-    if (turnRightTask) {
-      if (isHeading(endTaskDirection)) {
-	turnRightTask=false;
-      } else {
-	stepTurn(Parameters.Direction.RIGHT);
-      }
-      return;
-    }
-    if (detectFront().getObjectType()==IFrontSensorResult.Types.WALL) {
-      fallBackCoveringFireTask=false;
-      turnRightTask=true;
-      endTaskDirection=getHeading()+Parameters.RIGHTTURNFULLANGLE;
-      stepTurn(Parameters.Direction.RIGHT);
-      sendLogMessage("Iceberg at 12 o'clock. Heading to my three!");
-      return;
-    }
-    if (detectFront().getObjectType()==IFrontSensorResult.Types.OpponentMainBot || detectFront().getObjectType()==IFrontSensorResult.Types.OpponentSecondaryBot) {
-      turnRightTask=false;
-      fallBackCoveringFireTask=true;
-      endMoveTask=300;
-      moveBack();
-      distance=Parameters.teamAMainBotSpeed;
-      schemeIndex=0;
-      sendLogMessage("Enemy at 12 o'clock. Fall back covering fire for 30cm!");
-      return;
-    }
-    if (detectFront().getObjectType()==IFrontSensorResult.Types.TeamSecondaryBot) {
-      turnRightTask=false;
-      avoidTeambot = true;
-      endMoveTask=20;
-      moveBack();
-      distance=Parameters.teamAMainBotSpeed;
-      schemeIndex=0;
-      sendLogMessage("Team bot at 12 o'clock. Avoiding!");
-      return;
-    }
-
-    if (detectFront().getObjectType() == IFrontSensorResult.Types.Wreck && !avoidingWreck) {
-      sendLogMessage("Wreck bot detected at 12 o'clock. Starting avoidance procedure.");
-      avoidingWreck = true;
-      turnDirectionForAvoiding = Parameters.Direction.RIGHT;  // or LEFT, based on your preference or logic
-      endMoveTask = 20;  // adjust as needed
-      distance = 0;
-      return;
-    }
-
-    if (avoidingWreck) {
-      sendLogMessage("In the process of avoiding the Wreck.");
-
-      if (distance < endMoveTask) {
-        sendLogMessage("Backing away from the Wreck.");
-        moveBack();
-        distance += Parameters.teamAMainBotSpeed;
-        return;
-      }
-
-      if (!isSameDirection(myGetHeading(), Parameters.WEST)) {
-        sendLogMessage("Turning to avoid the Wreck.");
-        stepTurn(turnDirectionForAvoiding);
-        return;
-      } else if (turnDirectionForAvoiding == Parameters.Direction.RIGHT && isSameDirection(myGetHeading(), Parameters.SOUTH)) {
-        sendLogMessage("Finished turning right. Now moving forward.");
-        distance = 0;
-      } else if (turnDirectionForAvoiding == Parameters.Direction.LEFT && isSameDirection(myGetHeading(), Parameters.NORTH)) {
-        sendLogMessage("Finished turning left. Now moving forward.");
-        distance = 0;
-      }
-
-      if (detectFront().getObjectType() != IFrontSensorResult.Types.Wreck && distance < endMoveTask) {
-        sendLogMessage("No more Wreck detected in front. Moving forward.");
-        move();
-        distance += Parameters.teamAMainBotSpeed;
-        return;
-      } else if (detectFront().getObjectType() == IFrontSensorResult.Types.Wreck) {
-        sendLogMessage("Still detecting Wreck in front. Turning again.");
-        stepTurn(turnDirectionForAvoiding);
-        return;
-      } else {
-        sendLogMessage("Finished avoiding the Wreck.");
-        avoidingWreck = false;
-      }
-
-      if (distance < endMoveTask) {
-        sendLogMessage("Moving forward after avoiding the Wreck.");
-        move();
-        distance += Parameters.teamAMainBotSpeed;
-        return;
-      } else {
-        sendLogMessage("Finished avoiding the Wreck.");
-        avoidingWreck = false;
-      }
-    }
-
-    move(); //And what to do when blind blocked?
-    sendLogMessage("Moving a head. Waza!");
     return;
   }
+  
+  /*-------------------FONCTION PRIVEE-------------------*/
+	private double distanceEuclidienne(double x1,double y1, double x2,double y2) {
+		return Math.sqrt((x1-x2)*(x1-x2) + (y1-y2)*(y1-y2));
+	}
+	
+	private boolean isDistanceInf(double x1,double y1, double x2,double y2) {
+		return distanceEuclidienne(x1,y1,x2,y2) < 1000.0;
+	}
+	
+	private double tournerVers(double x, double y, double destX, double destY) {
+	    return Math.atan2(destY - y, destX - x);
+	}
+	
+	private double normalize(double dir){
+	    double res=dir;
+	    while (res<0) res+=2*Math.PI;
+	    while (res>=2*Math.PI) res-=2*Math.PI;
+	    return res;
+	}
+	
   private boolean isHeading(double dir){
     return Math.abs(Math.sin(getHeading()-dir))<HEADINGPRECISION;
   }
@@ -194,5 +137,16 @@ public class Combinaison extends Brain {
   }
   private boolean isSameDirection(double dir1, double dir2){
     return Math.abs(dir1-dir2)<ANGLEPRECISION;
+  }
+  private boolean isAbove(double dir1, double dir2){
+      return Math.abs(normalize(dir1)-normalize(dir2))<HEADINGPRECISION;
+  }
+  private void handleMessages(ArrayList<String> messages) {
+      for (String message : messages) {
+          String[] parts = message.split(":");
+          cibleX = Double.parseDouble(parts[0]);
+          cibleY= Double.parseDouble(parts[1]);
+    	  
+      }
   }
 }
