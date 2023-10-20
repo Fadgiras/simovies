@@ -37,6 +37,7 @@ public class Combinaison extends Brain {
   private int schemeIndex;
   private double cibleX,cibleY,cibleAngle;
   private double myX,myY;
+  private double initX;
   private ArrayList<String> messages;
   private ArrayList<IRadarResult> listRadar;
   private int compteur;
@@ -71,6 +72,7 @@ public class Combinaison extends Brain {
 	    	myX=Parameters.teamAMainBot3InitX;
 		    myY=Parameters.teamAMainBot3InitY;
 	    }
+	    initX=myX;
 	    turnRightTask=false;
 	    move();
 	    
@@ -88,18 +90,20 @@ public class Combinaison extends Brain {
 			messages.clear();
 			messagerecu = true;
 	  }
+	  
 	  if(messagerecu) {
 		  if(isDistanceInf(myX,myY,cibleX,cibleY)) {
 				cibleAngle=tournerVers(myX,myY,cibleX,cibleY);
 				fire(cibleAngle);
+				messagerecu=false;
 			}
 	  }
 	  
-	  if(compteur < DEPLACEMENT) {
+	  if(initX+DEPLACEMENT>myX) {
 		  move();
 		  myX+=Parameters.teamASecondaryBotSpeed*Math.cos(getHeading());
 	      myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
-		  compteur++;
+		  
 	  }
 
     return;
@@ -146,7 +150,6 @@ public class Combinaison extends Brain {
           String[] parts = message.split(":");
           cibleX = Double.parseDouble(parts[0]);
           cibleY= Double.parseDouble(parts[1]);
-    	  
       }
   }
 }

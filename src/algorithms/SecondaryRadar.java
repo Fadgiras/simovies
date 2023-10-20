@@ -65,7 +65,7 @@ public class SecondaryRadar extends Brain {
 
     @Override
     public void step() {
-
+    	
         if (whoAmI== ROCKY){
             System.err.println("I am Rocky "+ state);
             if (state==TURNLEFTTASK) {
@@ -84,7 +84,7 @@ public class SecondaryRadar extends Brain {
                     System.err.println("TOTURNPOINT: Moving to turn point");
                     move();
                     distanceTravelledRocky += Parameters.teamBSecondaryBotSpeed;
-                    sendLogMessage("Distance travelled: " + distanceTravelledRocky + " " + whoAmI);
+                    //sendLogMessage("Distance travelled: " + distanceTravelledRocky + " " + whoAmI);
                     return;
                 }
                 System.err.println("TOTURNPOINT: Reached turn point, turning RIGHT");
@@ -106,18 +106,24 @@ public class SecondaryRadar extends Brain {
                 System.err.println("MOVETASK: INIT");
             }
 
-            if (state==MOVETASK) {
+            if (state==MOVETASK && !inPosition) {
                 System.err.println("MOVETASK: In MOVETASK state");
                 System.err.println("Distance travelled: " + distanceTravelledRockyToScan + " Target: " + TARGET_DISTANCE);
                 if (distanceTravelledRockyToScan < TARGET_DISTANCE) {
                     System.err.println("MOVETASK: Moving to target");
                     move();
                     distanceTravelledRockyToScan += Parameters.teamBSecondaryBotSpeed;
-                    sendLogMessage("Distance travelled: " + distanceTravelledRockyToScan + " " + whoAmI);
+                    //sendLogMessage("Distance travelled: " + distanceTravelledRockyToScan + " " + whoAmI);
                     return;
                 } else {
                     // Si la distance cible est atteinte, arrêtez le mouvement
-                    sendLogMessage("Target distance reached!");
+                    //sendLogMessage("Target distance reached!");
+                    if (whoAmI==ROCKY){
+                        myX = myX+distanceTravelledRockyToScan;
+                        myY = myY+distanceTravelledRocky;
+                    }
+                    sendLogMessage(myX +" "+ myY);
+
                     inPosition = true;
                 }
             }
@@ -140,7 +146,7 @@ public class SecondaryRadar extends Brain {
                     System.err.println("TOTURNPOINT: Moving to turn point");
                     move();
                     distanceTravelledRocky += Parameters.teamBSecondaryBotSpeed;
-                    sendLogMessage("Distance travelled: " + distanceTravelledRocky + " " + whoAmI);
+                    //sendLogMessage("Distance travelled: " + distanceTravelledRocky + " " + whoAmI);
                     return;
                 }
                 System.err.println("TOTURNPOINT: Reached turn point, turning LEFT");
@@ -169,36 +175,36 @@ public class SecondaryRadar extends Brain {
                     System.err.println("MOVETASK: Moving to target");
                     move();
                     distanceTravelledRockyToScan += Parameters.teamBSecondaryBotSpeed;
-                    sendLogMessage("Distance travelled: " + distanceTravelledRockyToScan + " " + whoAmI);
+                    //sendLogMessage("Distance travelled: " + distanceTravelledRockyToScan + " " + whoAmI);
                     return;
                 } else {
                     // Si la distance cible est atteinte, arrêtez le mouvement
                     sendLogMessage("Target distance reached!");
                     if (whoAmI==ROCKY){
-                        myX = myX+distanceTravelledRockyToScan;
+s                        myX = myX+distanceTravelledRockyToScan;
                         myY = myY+distanceTravelledRocky;
                     }else {
                         myX = myX+distanceTravelledRockyToScan;
                         myY = myY-distanceTravelledRocky;
                     }
+                    //sendLogMessage(myX +" "+ myY);
                     inPosition = true;
+
                 }
             }
         }
 
         if (state==MOVETASK && inPosition){
-            String name ;
-            if (whoAmI==ROCKY){
-                name = "ROCKY";
-            }else {
-                name = "MARIO";
-            }
-            sendLogMessage("In position. Ready to fire! " + (name));
+
+            //sendLogMessage("In position. Ready to fire! " + (name));
             for (IRadarResult o: detectRadar()){
                 if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
-                    double enemyX=myX+o.getObjectDistance()*Math.cos(o.getObjectDirection());
-                    double enemyY=myY-o.getObjectDistance()*Math.sin(o.getObjectDirection());
-                    sendLogMessage("Broadcasting : "+ enemyX + " "+ enemyY);
+                	double enemyX=0;
+                	double enemyY=0;
+                    double correctedAngle = o.getObjectDirection();
+                     myX+o.getObjectDistance()*Math.cos(correctedAngle);
+                    enemyY=myY-o.getObjectDistance()*Math.sin(correctedAngle);	
+                    sendLogMessage("DETECTE " + enemyX + " " + enemyY);
                     broadcast(enemyX+":"+enemyY);
                 }
             }
