@@ -22,7 +22,7 @@ public class Combinaison extends Brain {
   private static final int DJIDJI = 0xB5EC0;
   private static final int BLEP = 0xCBADDADD;
 
-  private static final int DEPLACEMENT = 200;
+  private static final int DEPLACEMENT = 300;
 
   private Parameters.Direction turnDirectionForAvoiding;
 

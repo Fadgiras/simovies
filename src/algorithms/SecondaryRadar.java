@@ -25,7 +25,7 @@ public class SecondaryRadar extends Brain {
     private static final int TURNRIGHTTASK = 3;
     private static final int SINK = 0xBADC0DE1;
     private static final double TARGET_DISTANCE = 700.0;
-    private static final double TARGET_TURN_POINT = 200.0;
+    private static final double TARGET_TURN_POINT = 300.0;
     private static final double HEADINGPRECISION = 0.1;
     private static final double ANGLEPRECISION = 0.001;
     private static final int ROCKY = 0x1EADDA;
@@ -162,7 +162,7 @@ public class SecondaryRadar extends Brain {
                 System.err.println("MOVETASK: INIT");
             }
 
-            if (state==MOVETASK) {
+            if (state==MOVETASK && !inPosition) {
                 System.err.println("MOVETASK: In MOVETASK state");
                 System.err.println("Distance travelled: " + distanceTravelledRockyToScan + " Target: " + TARGET_DISTANCE);
                 if (distanceTravelledRockyToScan < TARGET_DISTANCE) {
@@ -174,6 +174,13 @@ public class SecondaryRadar extends Brain {
                 } else {
                     // Si la distance cible est atteinte, arrêtez le mouvement
                     sendLogMessage("Target distance reached!");
+                    if (whoAmI==ROCKY){
+                        myX = myX+distanceTravelledRockyToScan;
+                        myY = myY+distanceTravelledRocky;
+                    }else {
+                        myX = myX+distanceTravelledRockyToScan;
+                        myY = myY-distanceTravelledRocky;
+                    }
                     inPosition = true;
                 }
             }
@@ -189,9 +196,8 @@ public class SecondaryRadar extends Brain {
             sendLogMessage("In position. Ready to fire! " + (name));
             for (IRadarResult o: detectRadar()){
                 if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
-       
                     double enemyX=myX+o.getObjectDistance()*Math.cos(o.getObjectDirection());
-                    double enemyY=myY+o.getObjectDistance()*Math.sin(o.getObjectDirection());
+                    double enemyY=myY-o.getObjectDistance()*Math.sin(o.getObjectDirection());
                     sendLogMessage("Broadcasting : "+ enemyX + " "+ enemyY);
                     broadcast(enemyX+":"+enemyY);
                 }
