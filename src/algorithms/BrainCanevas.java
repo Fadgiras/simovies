@@ -27,6 +27,9 @@ public class BrainCanevas extends Brain {
       move();
       myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
       myY +=Parameters.teamBSecondaryBotSpeed*Math.sin(getHeading());
+    }else{
+    	sendLogMessage("Detecte " + myX +" " + myY);
+    	return;
     }
   }
 }

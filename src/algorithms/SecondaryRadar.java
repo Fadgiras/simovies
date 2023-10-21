@@ -9,7 +9,8 @@ public class SecondaryRadar extends Brain {
     private double distanceTravelled, distanceTravelledRocky, distanceTravelledRockyToScan;
     private int whoAmI;
     private double myX,myY;
-
+    private double initX,initY;
+    
     private static final int TEAM = 0xBADDAD;
     private static final int UNDEFINED = 0xBADC0DE0;
     private int state;
@@ -24,8 +25,8 @@ public class SecondaryRadar extends Brain {
     private static final int TOTURNPOINT = 4;
     private static final int TURNRIGHTTASK = 3;
     private static final int SINK = 0xBADC0DE1;
-    private static final double TARGET_DISTANCE = 700.0;
-    private static final double TARGET_TURN_POINT = 300.0;
+    private static final double TARGET_DISTANCE = 500.0;
+    private static final double TARGET_TURN_POINT = 200.0;
     private static final double HEADINGPRECISION = 0.1;
     private static final double ANGLEPRECISION = 0.001;
     private static final int ROCKY = 0x1EADDA;
@@ -39,10 +40,6 @@ public class SecondaryRadar extends Brain {
         whoAmI = ROCKY;
         for (IRadarResult o: detectRadar()){
             if (o.getObjectType()==IRadarResult.Types.TeamSecondaryBot){
-                //System.err.println("Secondary bot detected");
-                //System.err.println(isAbove(o.getObjectDirection(),Parameters.NORTH));
-                //System.err.println(isSameDirection(o.getObjectDirection(),Parameters.NORTH) && o.getObjectType()==IRadarResult.Types.TeamSecondaryBot);
-
                 if (isAbove(o.getObjectDirection(),Parameters.NORTH) && o.getObjectType()==IRadarResult.Types.TeamSecondaryBot){
                     whoAmI=MARIO;
                 }
@@ -52,11 +49,16 @@ public class SecondaryRadar extends Brain {
         if (whoAmI == ROCKY){
             myX=Parameters.teamASecondaryBot1InitX;
             myY=Parameters.teamASecondaryBot1InitY;
+            initX=myX;
+            initY=myY;
+
             state=TURNLEFTTASK;
         }else {
             myX=Parameters.teamASecondaryBot2InitX;
             myY=Parameters.teamASecondaryBot2InitY;
             state=TURNRIGHTTASK;
+            initX=myX;
+            initY=myY;
         }
 
         move();
@@ -65,74 +67,73 @@ public class SecondaryRadar extends Brain {
 
     @Override
     public void step() {
-    	
+        sendLogMessage(myX +" "+ myY);
+
+        
+    	/* ------------------------	les instructions de ROCKY  ------------------------ */
         if (whoAmI== ROCKY){
-            System.err.println("I am Rocky "+ state);
+        	
+        	/*
+        	 * STEP : il pivote
+        	 */
             if (state==TURNLEFTTASK) {
                 if (!(isSameDirection(getHeading(),Parameters.NORTH))) {
-                    System.err.println("I am Rocky and I am turning left");
+                    //System.err.println("I am Rocky and I am turning left");
                     stepTurn(Parameters.Direction.LEFT);
                     return;
                 }else {
                     state=TOTURNPOINT;
                 }
             }
-
+            
+            
+            /*
+             * STEP : il monte
+             */
             if (state==TOTURNPOINT && !(isHeading(Parameters.EAST))) {
-                System.err.println("TOTURNPOINT: Turning to EAST");
-                if (distanceTravelledRocky < TARGET_TURN_POINT) {
-                    System.err.println("TOTURNPOINT: Moving to turn point");
+                if (myY > initY-TARGET_TURN_POINT) {
                     move();
-                    distanceTravelledRocky += Parameters.teamBSecondaryBotSpeed;
-                    //sendLogMessage("Distance travelled: " + distanceTravelledRocky + " " + whoAmI);
+                    myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
                     return;
                 }
-                System.err.println("TOTURNPOINT: Reached turn point, turning RIGHT");
                 stepTurn(Parameters.Direction.RIGHT);
                 return;
             } else {
                 inTurnPoint = true;
-                System.err.println("TOTURNPOINT: In turn point");
             }
-
-
-//            System.err.println(inTurnPoint && !(state==MOVETASK));
+            
+            
+            /*
+             * STEP : atteint sa destination : changement d'état
+             */
             if(inTurnPoint && (state!=MOVETASK)){
-                System.err.println("Target turn point reached!");
                 state=MOVETASK;
-                System.err.println(state);
                 return;
-            }else {
-                System.err.println("MOVETASK: INIT");
             }
-
+            
+            
+            /*
+             * STEP: il se déplace de gauche à droite
+             */
             if (state==MOVETASK && !inPosition) {
-                System.err.println("MOVETASK: In MOVETASK state");
-                System.err.println("Distance travelled: " + distanceTravelledRockyToScan + " Target: " + TARGET_DISTANCE);
-                if (distanceTravelledRockyToScan < TARGET_DISTANCE) {
-                    System.err.println("MOVETASK: Moving to target");
+                if (myX < initX+TARGET_DISTANCE) {
+                	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
                     move();
-                    distanceTravelledRockyToScan += Parameters.teamBSecondaryBotSpeed;
-                    //sendLogMessage("Distance travelled: " + distanceTravelledRockyToScan + " " + whoAmI);
                     return;
                 } else {
-                    // Si la distance cible est atteinte, arrêtez le mouvement
-                    //sendLogMessage("Target distance reached!");
-                    if (whoAmI==ROCKY){
-                        myX = myX+distanceTravelledRockyToScan;
-                        myY = myY+distanceTravelledRocky;
-                    }
-                    sendLogMessage(myX +" "+ myY);
-
                     inPosition = true;
                 }
             }
 
+    /* ------------------------	les instructions de MARIO  ------------------------ */
+
         }else {
-            System.err.println("I am Mario "+ state);
-            if (state==TURNRIGHTTASK) {
+        	
+        	/*
+        	 * STEP : il pivote
+        	 */
+        	if (state==TURNRIGHTTASK) {
                 if (!(isSameDirection(getHeading(),Parameters.SOUTH))) {
-                    System.err.println("I am Mario and I am turning right");
                     stepTurn(Parameters.Direction.RIGHT);
                     return;
                 }else {
@@ -140,72 +141,66 @@ public class SecondaryRadar extends Brain {
                 }
             }
 
+        	
+        	/*
+        	 * STEP : il descend
+        	 */
             if (state==TOTURNPOINT && !(isHeading(Parameters.EAST))) {
-                System.err.println("TOTURNPOINT: Turning to EAST");
-                if (distanceTravelledRocky < TARGET_TURN_POINT) {
-                    System.err.println("TOTURNPOINT: Moving to turn point");
+                if (myY < initY+TARGET_TURN_POINT) {
                     move();
+                    myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
                     distanceTravelledRocky += Parameters.teamBSecondaryBotSpeed;
-                    //sendLogMessage("Distance travelled: " + distanceTravelledRocky + " " + whoAmI);
                     return;
                 }
-                System.err.println("TOTURNPOINT: Reached turn point, turning LEFT");
                 stepTurn(Parameters.Direction.LEFT);
                 return;
             } else {
                 inTurnPoint = true;
-                System.err.println("TOTURNPOINT: In turn point");
             }
 
-
-//            System.err.println(inTurnPoint && !(state==MOVETASK));
+            
+            /*
+             * STEP : atteint sa destination : changement d'état
+             */
             if(inTurnPoint && (state!=MOVETASK)){
-                System.err.println("Target turn point reached!");
                 state=MOVETASK;
-                System.err.println(state);
                 return;
-            }else {
-                System.err.println("MOVETASK: INIT");
             }
 
+            
+            /*
+             * STEP : se déplace de gauche à droite 
+             */
             if (state==MOVETASK && !inPosition) {
-                System.err.println("MOVETASK: In MOVETASK state");
-                System.err.println("Distance travelled: " + distanceTravelledRockyToScan + " Target: " + TARGET_DISTANCE);
-                if (distanceTravelledRockyToScan < TARGET_DISTANCE) {
-                    System.err.println("MOVETASK: Moving to target");
+                if (myX < initX+TARGET_DISTANCE) {
                     move();
+                	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
                     distanceTravelledRockyToScan += Parameters.teamBSecondaryBotSpeed;
-                    //sendLogMessage("Distance travelled: " + distanceTravelledRockyToScan + " " + whoAmI);
                     return;
                 } else {
-                    // Si la distance cible est atteinte, arrêtez le mouvement
-                    sendLogMessage("Target distance reached!");
-                    if (whoAmI==ROCKY){
-s                        myX = myX+distanceTravelledRockyToScan;
-                        myY = myY+distanceTravelledRocky;
-                    }else {
-                        myX = myX+distanceTravelledRockyToScan;
-                        myY = myY-distanceTravelledRocky;
-                    }
-                    //sendLogMessage(myX +" "+ myY);
                     inPosition = true;
-
                 }
             }
         }
+        
+    	/* ------------------------	les instructions de MARIO/ROCKY  ------------------------ */
 
+        /*
+         * STEP : Detection de robot ennemie
+         */
         if (state==MOVETASK && inPosition){
-
             //sendLogMessage("In position. Ready to fire! " + (name));
             for (IRadarResult o: detectRadar()){
                 if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
                 	double enemyX=0;
                 	double enemyY=0;
                     double correctedAngle = o.getObjectDirection();
-                     myX+o.getObjectDistance()*Math.cos(correctedAngle);
-                    enemyY=myY-o.getObjectDistance()*Math.sin(correctedAngle);	
-                    sendLogMessage("DETECTE " + enemyX + " " + enemyY);
+                    enemyX=myX+o.getObjectDistance()*Math.cos(correctedAngle);
+                    enemyY=myY+o.getObjectDistance()*Math.sin(correctedAngle);
+                    //System.out.println("DETECTE " + enemyX + " " + enemyY);
                     broadcast(enemyX+":"+enemyY);
+                }else {
+                    sendLogMessage("Aucune enemy");
                 }
             }
         }

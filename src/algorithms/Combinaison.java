@@ -42,13 +42,9 @@ public class Combinaison extends Brain {
   private ArrayList<IRadarResult> listRadar;
   private int compteur;
   private boolean messagerecu;
-  //---CONSTRUCTORS---//
   public Combinaison() { super(); }
 
-  //---ABSTRACT-METHODS-IMPLEMENTATION---//
   public void activate() {
-	  
-	  //ODOMETRY CODE
 	    
 	    listRadar = detectRadar();
 	    if(isAbove(listRadar.get(0).getObjectDirection(),Parameters.SOUTH) && isAbove(listRadar.get(1).getObjectDirection(),Parameters.EAST)){
@@ -80,9 +76,10 @@ public class Combinaison extends Brain {
   
   public void step() {
 	  sendLogMessage("position "+ myX + " "+ myY);
-	  compteur++;
-
-	  //reception de message 
+	  
+	  /*
+	   * STEP : Reception des coordonnées de l'ennemie
+	   */
 	  messages= fetchAllMessages();
 	  if(!messages.isEmpty()) {
 			sendLogMessage("Message recu "+ cibleX +" " +cibleY);
@@ -91,14 +88,23 @@ public class Combinaison extends Brain {
 			messagerecu = true;
 	  }
 	  
+	  
+	  /*
+	   * STEP : Tire si il est à porté 
+	   */
 	  if(messagerecu) {
 		  if(isDistanceInf(myX,myY,cibleX,cibleY)) {
 				cibleAngle=tournerVers(myX,myY,cibleX,cibleY);
 				fire(cibleAngle);
 				messagerecu=false;
+				return;
 			}
 	  }
 	  
+	  
+	  /*
+	   * STEP : information positions 
+	   */
 	  if(initX+DEPLACEMENT>myX) {
 		  move();
 		  myX+=Parameters.teamASecondaryBotSpeed*Math.cos(getHeading());
