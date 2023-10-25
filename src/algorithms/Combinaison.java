@@ -43,12 +43,16 @@ public class Combinaison extends Brain {
   private double oldY;
   private double myX,myY;
   private double initX;
+  private double oldAngle;
   private ArrayList<String> messages;
   private ArrayList<IRadarResult> listRadar;
-  private boolean messagerecu,enemy,contourne,verslebas;
+  private boolean messagerecu,enemy,contourne,verslebas,wall;
   public Combinaison() { super(); }
 
   public void activate() {
+	  /*
+	   * Assigne les différents roles
+	   */
 	    listRadar = detectRadar();
 	    if(isAbove(listRadar.get(0).getObjectDirection(),Parameters.SOUTH,HEADINGPRECISION) && isAbove(listRadar.get(1).getObjectDirection(),Parameters.EAST,HEADINGPRECISION)){
 	    	whoAmI = WEEB;
@@ -79,59 +83,100 @@ public class Combinaison extends Brain {
 		oldCibleY=-1;
 		contourne=false;
 		verslebas=false;
+		wall=false;
 
   }
   
   public void step() {
-	  //sendLogMessage( myX + " "+ myY);
+	  sendLogMessage( myX + " "+ myY);
 	  
 	  /*
-	   * STEP : ennemis à porter
+	   * STEP : a côté d'un mur, pivote de 90°
 	   */
-
-
+	  if(wall) {
+		  if(!(isSameDirection(getHeading(),oldAngle+Parameters.NORTH))){
+			  stepTurn(Parameters.Direction.LEFT);
+			  return;
+		  }
+	  }
+	  
+	  /*
+	   * STEP : devant lui un allié, attends
+	   */
+	  if(detectFront().getObjectType()==IFrontSensorResult.Types.TeamSecondaryBot || detectFront().getObjectType()==IFrontSensorResult.Types.TeamMainBot){
+     	 sendLogMessage("PTIN MAIS BOUGE");
+	  		return;
+	  	}
+	  
+	  
 	  if(contourne) {
 		  /*
 		   * si on detecte un object au dessus de lui
 		   */
-			  
 			  if(verslebas == false &&!(isSameDirection(getHeading(),Parameters.SOUTH))) {
 	              stepTurn(Parameters.Direction.RIGHT);
 	              return;
 			  }
               verslebas = true;			  
-		      if(contourne && myY<oldY+DEPLACEMENT_CONTOURNER) {
+		      if(myY<oldY+DEPLACEMENT_CONTOURNER) {
 				  move();
 				  myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
 		          return;
 		      }
-		      System.out.println(getHeading() +" " + Parameters.EAST);
 		      
 		      if(verslebas && !isSameDirection(getHeading(),Parameters.EAST)) {
 	              stepTurn(Parameters.Direction.LEFT);
 		          return;
 			  }
-    		  sendLogMessage("ESQUIVE");
 
 		      contourne=false;
 		      verslebas=false;
 	  }
 	  
+	  
+	  /*
+	   * en face d'un cadavre, contourne
+	   
+	  if(detectFront().getObjectType()== IFrontSensorResult.Types.Wreck){
+		  contourne = true;
+		  return;
+		}
+	  */
+	  
+	  /*
+	   * detection d'un mur 
+	   */
+	  if(detectFront().getObjectType()==IFrontSensorResult.Types.WALL){
+     	 wall = true;
+     	 oldAngle = getHeading();
+     	 return;
+	  }
+	  
+	  /*
+	   * a porté de radar, tire sur les ennemis 
+	   * 
+	   * si il detecte un cadavre sur son radar, il va l'esquive
+	   */
       for (IRadarResult o: detectRadar()){
           if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
         	  fire(o.getObjectDirection());
         	  return;
-          }else if(o.getObjectType()==IRadarResult.Types.Wreck){
-        	  if(!contourne) {
-        		  sendLogMessage("contourne");
-        		  oldY=myY;
-        		  contourne = true;
-        		  break;
+          }
+          else if(o.getObjectType()==IRadarResult.Types.Wreck){
+        	  if(o.getObjectDistance()<150) {
+            	  if(!contourne) {
+            		  sendLogMessage("contourne");
+            		  oldY=myY;
+            		  contourne = true;
+            		  break;
+            	  
+            	  }
         	  }
          
           }
 
       }
+      
       
 
 	  /*
@@ -219,45 +264,6 @@ public class Combinaison extends Brain {
 	  myX+=Parameters.teamAMainBotSpeed*Math.cos(getHeading());
       myY+=Parameters.teamAMainBotSpeed*Math.sin(getHeading());
 	  
-  }
-  private void contourner(IRadarResult o) {
-	  if(o.getObjectDistance()<200) {		  
-		  /*
-		   * si on detecte un object au dessus de lui
-		   */
-		  if(isAbove(o.getObjectDirection(),Parameters.EAST,HEADINGPRECISION) && o.getObjectType()==IRadarResult.Types.Wreck) {
-			  sendLogMessage("object devant moi");
-			  while(!(isSameDirection(getHeading(),Parameters.SOUTH))) {
-	              stepTurn(Parameters.Direction.RIGHT);
-			  }
-			  while (myY-DEPLACEMENT_CONTOURNER < myY) {
-	              move();
-	              myY-=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
-	          }
-			  while(!(isSameDirection(getHeading(),Parameters.EAST))) {
-	              stepTurn(Parameters.Direction.LEFT);
-			  }
-		  }
-			  
-		  /*
-		   * sil l'object est en bas 
-		   */
-		  else if(isAbove(o.getObjectDirection(),Parameters.SOUTH,HEADINGPRECISION) && o.getObjectType()==IRadarResult.Types.Wreck) {
-			  sendLogMessage("object au SUD");
-			  while(!(isSameDirection(getHeading(),Parameters.NORTH))) {
-	              stepTurn(Parameters.Direction.LEFT);
-			  }
-			  while (myY < myY+DEPLACEMENT_CONTOURNER) {
-				  move();
-	              myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
-	          }
-			  while(!(isSameDirection(getHeading(),Parameters.EAST))) {
-	              stepTurn(Parameters.Direction.LEFT);
-			  }
-		  }else {
-			  sendLogMessage("je detecte un object mais je peux pas le contourner");
-		  }
-		  }
   }
   
 }

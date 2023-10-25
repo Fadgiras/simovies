@@ -1,5 +1,6 @@
 package algorithms;
 
+import characteristics.IFrontSensorResult;
 import characteristics.IRadarResult;
 import characteristics.Parameters;
 import robotsimulator.Brain;
@@ -9,7 +10,8 @@ public class SecondaryRadar extends Brain {
     private double distanceTravelled, distanceTravelledRocky, distanceTravelledRockyToScan;
     private int whoAmI;
     private double myX,myY;
-    private double initX,initY;
+    private double initX,initY,oldY,oldAngle;
+    private boolean contourne,verslebas,wall;
     
     private static final int TEAM = 0xBADDAD;
     private static final int UNDEFINED = 0xBADC0DE0;
@@ -24,13 +26,17 @@ public class SecondaryRadar extends Brain {
     private static final int MOVETASK = 2;
     private static final int TOTURNPOINT = 4;
     private static final int TURNRIGHTTASK = 3;
+    private static final int MOVEBACK = 5;
+
     private static final int SINK = 0xBADC0DE1;
     private static final double TARGET_DISTANCE = 700.0;
-    private static final double TARGET_TURN_POINT = 250.0;
+    private static final double TARGET_TURN_POINT = 300.0;
     private static final double HEADINGPRECISION = 0.1;
     private static final double ANGLEPRECISION = 0.01;
     private static final int ROCKY = 0x1EADDA;
     private static final int MARIO = 0x5EC0;
+
+    private static final int DEPLACEMENT_CONTOURNER = 300;
 
     //---CONSTRUCTORS---//
     public SecondaryRadar() { super(); }
@@ -61,17 +67,92 @@ public class SecondaryRadar extends Brain {
             initY=myY;
         }
         move();
-        sendLogMessage("Moving a head. Waza!");
+        contourne= false;
+        verslebas=false;
     }
 
     @Override
     public void step() {
-    	 /*
-         * STEP : Detection de robot ennemie
-         */
+  	  sendLogMessage( myX + " "+ myY);
+    	
+    /*
+     * en face d'un allie, attends
+     */
+    if(detectFront().getObjectType()==IFrontSensorResult.Types.TeamSecondaryBot || detectFront().getObjectType()==IFrontSensorResult.Types.TeamMainBot){
+        	 sendLogMessage("PTIN MAIS BOUGE");
+   	  		return;
+   	  }
+    
+      /*
+	   * STEP : a côté d'un mur, pivote de 90°
+	   */
+	  if(wall) {
+		  if(!(isSameDirection(getHeading(),oldAngle+Parameters.NORTH))){
+			  stepTurn(Parameters.Direction.LEFT);
+			  return;
+		  }
+	  }
+	/*
+     * STEP : Contournement d'un cadavre
+     */
+    
+  	  if(contourne) {
+  		  
+  		  
+		  /*
+		   * pivote vers le bas 
+		   */
+			  if(verslebas == false &&!(isSameDirection(getHeading(),Parameters.SOUTH))) {
+	              stepTurn(Parameters.Direction.RIGHT);
+	              return;
+			  }
+              verslebas = true;		
+              
+              
+    		  /*
+    		   * se déplace vers le bas
+    		   */
+    			  
+		      if(contourne && myY<oldY+DEPLACEMENT_CONTOURNER) {
+				  move();
+				  myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
+		          return;
+		      }
+		      
+    			  /*
+        		   * pivote vers la gauche
+        		   */
+		      if(verslebas && !isSameDirection(getHeading(),Parameters.EAST)) {
+	              stepTurn(Parameters.Direction.LEFT);
+		          return;
+			  }
+    		  sendLogMessage("ESQUIVE");
+
+		      contourne=false;
+		      verslebas=false;
+	  }
+  	  
+  	  
+  	  /*
+  	   * STEP : en face d'un mur, pivote de 90° 
+  	   */
+  	  if(detectFront().getObjectType()==IFrontSensorResult.Types.WALL){
+  		wall=true;
+    	 oldAngle = getHeading();
+
+		return;
+  	  }
+  	  
+  	  
+  	  /*
+       * STEP : detection d'un object
+       */
         if (state==MOVETASK){
             //sendLogMessage("In position. Ready to fire! " + (name));
             for (IRadarResult o: detectRadar()){
+            	/*
+            	 * Detection d'un ennemis, envoie des coordonée
+            	 */
                 if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
                 	sendLogMessage("DETECTE");
                 	double enemyX=0;
@@ -82,13 +163,29 @@ public class SecondaryRadar extends Brain {
                     broadcast(enemyX+":"+enemyY);
                 	inPosition = true;
                 	return;
+                	
+                	
+                	/*
+                	 * Detection d'un cadavre, on esquive
+                	 */
                 }else if(o.getObjectType()==IRadarResult.Types.Wreck){
-                	contourner();
-                    broadcast("-1:-1");
+                	if(o.getObjectDistance()<150) {
+                  	  if(!contourne) {
+                  		  sendLogMessage("contourne");
+                  		  oldY=myY;
+                  		  contourne = true;
+                  	  
+                  	  }
+                	}
+                	broadcast("-1:-1");
+            		  break;
+                	
                 }else {
-                	sendLogMessage("non");
+                	/*
+                	 * Detection d'un ennemis, envoie des coordonée
+                	 */
+                	sendLogMessage("je vois personne");
                 	inPosition = false;
-
                 }
             }
 
@@ -149,7 +246,20 @@ public class SecondaryRadar extends Brain {
             	inPosition = true;
                 
             }
+            
+            
+            /*
+             * STEP: en face d'un mur
+             */
 
+            if(state==MOVEBACK) {
+            	sendLogMessage("WALL");
+            	myX -=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
+            	moveBack();
+            	return;
+            }else {
+            	inPosition = true;
+            }
     /* ------------------------	les instructions de MARIO  ------------------------ */
 
         }else {
@@ -201,6 +311,20 @@ public class SecondaryRadar extends Brain {
             	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());                    return;
             } else {
                 inPosition = true;
+            }
+            
+            
+            /*
+             * STEP: en face d'un mur
+             */
+
+            if(state==MOVEBACK) {
+            	sendLogMessage("WALL");
+            	myX -=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
+            	moveBack();
+            	return;
+            }else {
+            	inPosition = true;
             }
             
         }
