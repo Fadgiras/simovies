@@ -18,15 +18,16 @@ public class BrainCanevas extends Brain {
     //---PARTIE A MODIFIER/ECRIRE---//
     move();
     myX = 2500;
-    myY = 800;
+    myY = 1200;
   }
   public void step() {
     //---PARTIE A MODIFIER/ECRIRE---//
-	sendLogMessage("Position : "+ myX + " " + myY );
     if (detectFront().getObjectType()==IFrontSensorResult.Types.NOTHING) {
       move();
       myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
       myY +=Parameters.teamBSecondaryBotSpeed*Math.sin(getHeading());
+      sendLogMessage("Position : "+ myX + " " + myY );
+
     }else{
     	sendLogMessage("Detecte " + myX +" " + myY);
     	return;

@@ -25,10 +25,10 @@ public class SecondaryRadar extends Brain {
     private static final int TOTURNPOINT = 4;
     private static final int TURNRIGHTTASK = 3;
     private static final int SINK = 0xBADC0DE1;
-    private static final double TARGET_DISTANCE = 500.0;
+    private static final double TARGET_DISTANCE = 700.0;
     private static final double TARGET_TURN_POINT = 200.0;
     private static final double HEADINGPRECISION = 0.1;
-    private static final double ANGLEPRECISION = 0.001;
+    private static final double ANGLEPRECISION = 0.01;
     private static final int ROCKY = 0x1EADDA;
     private static final int MARIO = 0x5EC0;
 
@@ -67,8 +67,37 @@ public class SecondaryRadar extends Brain {
 
     @Override
     public void step() {
-        sendLogMessage(myX +" "+ myY);
+    	 /*
+         * STEP : Detection de robot ennemie
+         */
+        if (state==MOVETASK){
+            System.out.println("---------------------------------------------------------------------");
 
+            //sendLogMessage("In position. Ready to fire! " + (name));
+            for (IRadarResult o: detectRadar()){
+            	
+                if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
+                	double enemyX=0;
+                	double enemyY=0;
+                    enemyX=myX+o.getObjectDistance()*Math.cos(o.getObjectDirection());
+                    enemyY=myY+o.getObjectDistance()*Math.sin(o.getObjectDirection());
+                    sendLogMessage((int)myX +" "+ (int)myY+ " "+(int)enemyX + " "+ (int)enemyY);
+
+                    System.out.println("direction "+o.getObjectDirection());
+                    System.out.println("distance "+o.getObjectDistance());
+                    System.out.println("radius " +o.getObjectRadius());
+                    broadcast(enemyX+":"+enemyY);
+                	inPosition = true;
+                }else {
+                	inPosition = false;
+
+                }
+            }
+
+            System.out.println("---------------------------------------------------------------------");
+        }
+       
+        
         
     	/* ------------------------	les instructions de ROCKY  ------------------------ */
         if (whoAmI== ROCKY){
@@ -110,19 +139,17 @@ public class SecondaryRadar extends Brain {
                 state=MOVETASK;
                 return;
             }
-            
-            
+
             /*
              * STEP: il se déplace de gauche à droite
              */
             if (state==MOVETASK && !inPosition) {
-                if (myX < initX+TARGET_DISTANCE) {
-                	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
-                    move();
-                    return;
-                } else {
-                    inPosition = true;
-                }
+            	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
+                move();
+                return;
+            } else {
+            	inPosition = true;
+                
             }
 
     /* ------------------------	les instructions de MARIO  ------------------------ */
@@ -171,39 +198,17 @@ public class SecondaryRadar extends Brain {
             /*
              * STEP : se déplace de gauche à droite 
              */
-            if (state==MOVETASK && !inPosition) {
-                if (myX < initX+TARGET_DISTANCE) {
-                    move();
-                	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());
-                    distanceTravelledRockyToScan += Parameters.teamBSecondaryBotSpeed;
-                    return;
-                } else {
-                    inPosition = true;
-                }
+            if (state==MOVETASK && !inPosition ) {
+            	move();
+            	myX +=Parameters.teamBSecondaryBotSpeed*Math.cos(getHeading());                    return;
+            } else {
+                inPosition = true;
             }
+            
         }
         
-    	/* ------------------------	les instructions de MARIO/ROCKY  ------------------------ */
 
-        /*
-         * STEP : Detection de robot ennemie
-         */
-        if (state==MOVETASK && inPosition){
-            //sendLogMessage("In position. Ready to fire! " + (name));
-            for (IRadarResult o: detectRadar()){
-                if (o.getObjectType()==IRadarResult.Types.OpponentMainBot || o.getObjectType()==IRadarResult.Types.OpponentSecondaryBot) {
-                	double enemyX=0;
-                	double enemyY=0;
-                    double correctedAngle = o.getObjectDirection();
-                    enemyX=myX+o.getObjectDistance()*Math.cos(correctedAngle);
-                    enemyY=myY+o.getObjectDistance()*Math.sin(correctedAngle);
-                    //System.out.println("DETECTE " + enemyX + " " + enemyY);
-                    broadcast(enemyX+":"+enemyY);
-                }else {
-                    sendLogMessage("Aucune enemy");
-                }
-            }
-        }
+        //System.out.println("---------------------------------------------------------------------");
     }
 
     private boolean isHeading(double dir){

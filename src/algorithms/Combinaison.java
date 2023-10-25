@@ -22,7 +22,7 @@ public class Combinaison extends Brain {
   private static final int DJIDJI = 0xB5EC0;
   private static final int BLEP = 0xCBADDADD;
 
-  private static final int DEPLACEMENT = 300;
+  private static final int DEPLACEMENT = 500;
 
   private Parameters.Direction turnDirectionForAvoiding;
 
@@ -36,12 +36,12 @@ public class Combinaison extends Brain {
   //private static Action[] fallBackCoveringFireScheme = { Action.FIRE, Action.MOVEBACK};
   private int schemeIndex;
   private double cibleX,cibleY,cibleAngle;
+  private double oldCibleX,oldCibleY;
   private double myX,myY;
   private double initX;
   private ArrayList<String> messages;
   private ArrayList<IRadarResult> listRadar;
-  private int compteur;
-  private boolean messagerecu;
+  private boolean messagerecu,enemy;
   public Combinaison() { super(); }
 
   public void activate() {
@@ -70,50 +70,59 @@ public class Combinaison extends Brain {
 	    }
 	    initX=myX;
 	    turnRightTask=false;
-	    move();
-	    
+	    enemy=false;
+		messagerecu = false;
+		oldCibleX=-1;
+		oldCibleY=-1;
+
   }
   
   public void step() {
-	  sendLogMessage("position "+ myX + " "+ myY);
+	  sendLogMessage( myX + " "+ myY);
 	  
 	  /*
 	   * STEP : Reception des coordonnées de l'ennemie
 	   */
 	  messages= fetchAllMessages();
-	  if(!messages.isEmpty()) {
-			sendLogMessage("Message recu "+ cibleX +" " +cibleY);
-			handleMessages(messages);
-			messages.clear();
-			messagerecu = true;
+	  if(!messages.isEmpty()) { 
+		  if(oldCibleX == -1 && oldCibleY == -1) {
+			  handleMessages(messages);
+			  oldCibleX= cibleX;
+			  oldCibleY= cibleY;
+		  }else {
+			  //System.out.println("Message recu "+ cibleX +" " +cibleY);
+			  handleMessages(messages);
+			  if(distanceEuclidienne(myX,myY,cibleX,cibleY) < distanceEuclidienne(myX,myY,oldCibleX,oldCibleY)) {
+				  oldCibleX = cibleX;
+				  oldCibleY = cibleY;
+			  }
+			  messages.clear();
+			  messagerecu = true;  
+		  }
+			
+	  }else {
+			messagerecu = false;
 	  }
-	  
-	  
+	 
 	  /*
 	   * STEP : Tire si il est à porté 
 	   */
+	  
+	  
 	  if(messagerecu) {
-		  if(isDistanceInf(myX,myY,cibleX,cibleY)) {
-				cibleAngle=tournerVers(myX,myY,cibleX,cibleY);
-				fire(cibleAngle);
-				messagerecu=false;
-				return;
-			}
+		 if(isDistanceInf(myX,myY,oldCibleX,oldCibleY)) {
+			 cibleAngle = tournerVers(myX,myY,oldCibleX,oldCibleY);
+			 //sendLogMessage(cibleAngle+" "+(int)myX + " "+ (int)myY+ " "+(int)(oldCibleX- myX) + " "+ (int)(oldCibleY- myY));
+			 fire(cibleAngle);
+			 return;
+		 }else {
+			 myMove();
+		 }
 	  }
-	  
-	  
-	  /*
-	   * STEP : information positions 
-	   */
-	  if(initX+DEPLACEMENT>myX) {
-		  move();
-		  myX+=Parameters.teamASecondaryBotSpeed*Math.cos(getHeading());
-	      myY+=Parameters.teamASecondaryBotSpeed*Math.sin(getHeading());
-		  
-	  }
-
-    return;
+	
   }
+  
+  
   
   /*-------------------FONCTION PRIVEE-------------------*/
 	private double distanceEuclidienne(double x1,double y1, double x2,double y2) {
@@ -121,7 +130,7 @@ public class Combinaison extends Brain {
 	}
 	
 	private boolean isDistanceInf(double x1,double y1, double x2,double y2) {
-		return distanceEuclidienne(x1,y1,x2,y2) < 1000.0;
+		return distanceEuclidienne(x1,y1,x2,y2) < 600.0;
 	}
 	
 	private double tournerVers(double x, double y, double destX, double destY) {
@@ -136,7 +145,7 @@ public class Combinaison extends Brain {
 	}
 	
   private boolean isHeading(double dir){
-    return Math.abs(Math.sin(getHeading()-dir))<HEADINGPRECISION;
+    return Math.abs(Math.sin(myGetHeading()-dir))<HEADINGPRECISION;
   }
 
   private double myGetHeading(){
@@ -157,5 +166,12 @@ public class Combinaison extends Brain {
           cibleX = Double.parseDouble(parts[0]);
           cibleY= Double.parseDouble(parts[1]);
       }
+  }
+  
+  private void myMove() {
+	  move();
+	  myX+=Parameters.teamAMainBotSpeed*Math.cos(getHeading());
+      myY+=Parameters.teamAMainBotSpeed*Math.sin(getHeading());
+	  
   }
 }
